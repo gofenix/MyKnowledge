@@ -1,0 +1,91 @@
+﻿<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+<title>日历视图</title>
+<!-- Button classes -->
+<link rel='stylesheet' type='text/css' href='./fullcalendar/lib/cupertino/jquery-ui.min.css' />
+<link rel='stylesheet' type='text/css' href='./fullcalendar/fullcalendar.css' />
+<link rel='stylesheet' type='text/css' href='./fullcalendar/fullcalendar.print.css' media='print' />
+<link rel="stylesheet" href="./css/mainstructure.css"> 
+<link rel="stylesheet" href="./css/maincontent.css"> 
+<link rel="stylesheet" href="./css/spectrum.css"> 
+<link rel="stylesheet" href="./css/redmond/jquery-ui-1.8.1.custom.css"> 
+<link rel="stylesheet" href="./css/jquery.qtip.min.css"> 
+<!-- Jquery and Jquery UI -->
+<script src='./fullcalendar/lib/moment.min.js'></script>
+
+<script type='text/javascript' src='./jquery/jquery-1.7.2.min.js'></script>
+<script type='text/javascript' src='./jquery/jquery-ui-1.8.20.custom.min.js'></script>
+<script type="text/javascript" src='./jquery/jquery-ui-timepicker-addon.js'></script>
+<script type="text/javascript" src='./jquery/spectrum.js'></script>
+<script type='text/javascript' src='./jquery/jquery.qtip.min.js'></script>
+
+<!-- FullCalender -->
+<script type='text/javascript' src='./fullcalendar/fullcalendar.min.js'></script>
+<script type='text/javascript' src='./fullcalendar/gcal.js'></script>
+<script type="text/javascript" src="./jquery/chineseCalendar.js"></script>
+<script type="text/javascript" src="./jquery/calendarView.js"></script>
+
+<style type='text/css'>
+	body {
+		margin-top: 5px;
+		text-align: center;
+		font-size: 14px;
+		font-family: "Lucida Grande",Helvetica,Arial,Verdana,sans-serif;
+		}
+	.fc-grid .fc-day-number {
+		float: left; /* cp 2012/12/4 "default float:right"*/
+		padding: 5px 4px 0;/* cp 2012/12/4 ""default padding: 0 2px*/
+	}
+	
+</style>
+</head>
+<body onload="calendarViewOnLoad()" scroll="no">
+<table width="100%">
+	<tbody>
+		<tr align="left">
+			<td align="right" valign="top" >
+				<div id='calendar'></div>
+			</td>
+		</tr>
+	</tbody>
+</table>
+
+<div id=docinfo title=details>
+	<div id=eventtitle></div>
+	<div id=eventdesc></div>
+</div>
+
+<div style="display: none" id=calendaroption title=calendaroption>
+	<div id=sourceoption>
+		<div style="float: left; display: inline-block; background-color: #9fc6e7; padding: 8px;
+			color: #1d1d1d; border: solid 1px #1587bd; margin-right: 10px;">
+			<input type="checkbox" checked="checked" onclick="reloadCal()" name="e1" id="e1" />
+			<label for="e1">
+				Calendar events</label>
+		</div>
+		<div style="float: left; display: inline-block; background-color: #7c6995; padding: 8px;
+			color: #fff; border: solid 1px #5b447a; margin-right: 10px;">
+			<input type="checkbox" checked="checked" onclick="reloadCal()" name="e2" id="e2" />
+			<label for="e2">
+				Journals</label>
+		</div>
+		<div style="float: left; display: inline-block; background-color: #ccc; padding: 8px;
+			color: #000; border: solid 1px #666; margin-right: 10px;">
+			<input type="checkbox" checked="checked" onclick="reloadCal()" name="e3" id="e3" />
+			<label for="e3">
+				Normal documents</label>
+		</div>
+		<div id=historyoption>
+			<div style="float: left; display: inline-block; background-color: #9fc6e7; padding: 8px;
+				color: #1d1d1d; border: solid 1px #1587bd; margin-right: 10px;">
+				<input type="checkbox" checked="checked" name="e6" id="e6" />
+				<label for="e1">
+					History documents</label>
+			</div>
+		</div>
+	</div>
+</div>
+</body>
+</html>

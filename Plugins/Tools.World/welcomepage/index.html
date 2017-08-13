@@ -1,0 +1,822 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+	<title>Welcome</title>
+	<link rel="stylesheet" type="text/css" href="calendar/jquery-ui-1.9.1.custom.css">
+	<link rel="stylesheet" type="text/css" href="index.css?234">
+
+	<script type="text/javascript" src='jquery-1.8.1.min.js'></script>
+	<script type="text/javascript" src='calendar/jquery-ui-1.9.1.custom.js'></script>
+	<script type="text/javascript" src='json2.js'></script>
+	<script type="text/javascript" src='wizcommon.js?1'></script>
+	<script type="text/javascript" src='localize.js?23'></script>
+
+<script type="text/javascript">
+	var test = 130;
+	var WIZ_RECENT_NOTES_MAX_COUNT = 15;
+	var WIZ_RECENT_NOTES_LESS_COUNT = 3;
+	var g_cRrecentDocs = null;
+
+	//////////////////////////////////////////////////////////////////////
+	function GetRecentNotesCount() {
+		if (g_cRrecentDocs)
+			return g_cRrecentDocs;
+		//
+		var nCount = WIZ_RECENT_NOTES_MAX_COUNT;
+		var arrayRecDocColl = WizGetRecentDocuments(nCount);
+		//
+		return arrayRecDocColl.Count;		
+	}
+	function IsRecentNotesEmpty() {
+		return 0 == GetRecentNotesCount();
+	}
+	function IsRecentNotesLess() {
+		return WIZ_RECENT_NOTES_LESS_COUNT >= GetRecentNotesCount();
+	}
+	function GetURL() {
+		var url = document.location.href;
+		if (!url)
+			return;
+		//
+		var nIndex = url.indexOf('?');
+		//
+		if (-1 == nIndex)
+			return url;
+		else 
+			return url.substr(0, nIndex);
+	}
+	function GetWelcomeURL() {
+		return "http://api.wiz.cn/?p=wiz&l=2052&v=4.0.72.1&c=welcome";
+	}
+	function IsHTTP() {
+		var url = GetURL();
+		return -1 != url.indexOf("http");
+	}
+	function GetDYNRecentNotesHtml(arrayDoc) {
+		if (!arrayDoc || arrayDoc.length == 0)
+			return;
+		//
+		var html = "<tr class='rnt-tr'>" +
+						"<td class='rnt-td rnt-date-td'>" + 
+							"<div class='rnt-div'>" + 
+								"<p class='rnt-dt-p' id='rnt-dt-y'>%1</p>" + 
+								"<p class='rnt-dt-p' id='rnt-dt-m'>%2</p>" + 
+								"<p class='rnt-dt-p' id='rnt-dt-d'>%3</p>" + 
+							"</div>" + 
+						"</td>" + 
+						"<td class='rnt-td rnt-title-td'>" +
+							"<div class='rnt-title-div'>" + 
+								"<ul class='rnt-ul'>";
+		//
+		var strTitleEle = 
+					"<li class='rnt-li'>" + 
+						"<div class='rnt-inner-div'>" + 
+							"<a href='javascript:void(0);' class='rnt-a' guid='%5' title='%4'>" +
+								"%6" + 
+							"</a>" + 
+						"</div>" + 
+					"</li>";
+		//
+		for (var i = 0; i < arrayDoc.length; i ++) {
+			var doc = arrayDoc[i];
+			var strTitle = doc.Title;
+			var strGUID = doc.GUID;
+			var location = doc.Location;
+			//
+			strTitle = strTitle.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			//
+			html += strTitleEle.replace('%4', location)
+							   .replace('%5', strGUID)
+							   .replace('%6', strTitle);
+		}					
+		//
+		html +=					"</ul>" + 
+							"</div>" + 
+						"</td>" + 
+				   "</tr>";
+		//
+		var dtModified = new Date(arrayDoc[0].DateModified);
+		//
+		html = html.replace("%1", dtModified.getFullYear())
+				   .replace("%2", formatIntToDateString(dtModified.getMonth() + 1))
+				   .replace("%3", formatIntToDateString(dtModified.getDate()));
+		//
+		return html;
+	}
+	function SplitRecentNotesByDate(arrayDocColl) {
+		if (!arrayDocColl)
+			return;
+		var arrayDocs = [];
+		//
+		for (var i = 0; i < arrayDocColl.Count; i ++) {
+			var dtModified1 = arrayDocColl.Item(i).DateModified;
+			var strDate1 = GetDateTimeDate(D2S(new Date(dtModified1)));
+			//
+			var arrayDoc = [];
+			arrayDoc.push(arrayDocColl.Item(i));
+			//
+			var j = i + 1;
+			for (; j < arrayDocColl.Count; j ++) {
+				var dtModified2 = arrayDocColl.Item(j).DateModified;
+				var strDate2 = GetDateTimeDate(D2S(new Date(dtModified2)));
+				//
+				if (strDate1 != strDate2)
+					break;
+				//
+				arrayDoc.push(arrayDocColl.Item(j));
+			}
+			//
+			arrayDocs.push(arrayDoc);
+			//
+			i = j - 1;
+		}
+		//
+		return arrayDocs;
+	}
+	function InitRecentNotesAction() {
+		var $RecNotes = $(".rnt-a");
+		//
+		if (!$RecNotes)
+			return;
+		//
+		$RecNotes.unbind('click').click(function(){
+			var strGUID = $(this).attr('guid');
+			//
+			if (!strGUID)
+				return;
+			//
+			var doc = WizGetDocumentByGUID(strGUID);
+			//
+			if (!doc)
+				return;
+			//
+			WizViewDocument(doc);
+		});
+		//
+		$RecNotes.unbind('mouseover').mouseover(function(){
+			$(this).css("color", "blue");
+		}).unbind('mouseout').mouseout(function(){
+			$(this).css("color", "black");
+		});
+	}
+	function PrepareAllTabView() {
+		var $tabViewNews = $("#tv-news");
+		//
+		if ($tabViewNews) {
+			$tabViewNews.load("tab_view_news.html", function() {
+				var $tabViewDownload = $("#tv-download");
+				//
+				if ($tabViewDownload) {
+					$tabViewDownload.load("tab_view_download.html?" + Math.random(), function() {
+						//
+						LocalizeHTML();
+						//
+						InitShowTabView();
+					});
+				}
+				$tabViewDownload.css("display", "none");
+			});
+		}
+		//
+		$tabViewNews.css("display", "none");
+		//
+		$(".wl-ngv").eq(0).css("font-weight", "bold");
+	}	
+	function InitTagViewRecentNotes() {
+		var nCount = WIZ_RECENT_NOTES_MAX_COUNT;
+		//
+		var arrayRecDocColl = WizGetRecentDocuments(nCount);
+		if (!arrayRecDocColl)
+			return;
+		//
+		g_cRrecentDocs = arrayRecDocColl.Count;
+		//
+		var $recDocs = $('#rec-docs-tb');
+		//
+		var arrayDocs = SplitRecentNotesByDate(arrayRecDocColl);
+		if (!arrayDocs)
+			return;
+		//
+		for (var i = 0; i < arrayDocs.length; i ++) {
+			var arrayDoc = arrayDocs[i];
+			//
+			var html = GetDYNRecentNotesHtml(arrayDoc);
+			//
+			$recDocs.append(html);
+		}
+		//
+		InitRecentNotesAction();
+	}
+
+	function IninCloseAction() {
+		var $close = $("#wl-act-close-img");
+		if (!$close)
+			return;
+		//
+		$close.unbind("click").click(function(){
+			var $this = $(this);
+			//
+			var strActId = $this.attr("actid");
+			//
+			var dtForever = new Date();
+			dtForever.setFullYear(dtForever.getFullYear() + 20);
+			//
+			SetCookie(strActId, "true", dtForever);
+			//
+			var $actMain = $("#wl-act-main");
+			if (!$actMain)
+				return;
+			//
+			$actMain.remove();
+			//
+			StopBubble();
+			//
+			resetDatepicker();
+		});
+		//
+		var urlClose = "image/activity_close.png?" + Math.random();
+		var urlCloseHover = "image/activity_close_hover.png?" + Math.random();
+		//
+		$close.unbind('mouseover').mouseover(function(){
+			$(this).attr("src", urlCloseHover);
+		}).unbind('mouseout').mouseout(function(){
+			$(this).attr("src", urlClose);
+		})
+	}
+	function InitImageAction(strActivityUrl) {
+		$activity = $("#wl-activity");
+		if (!$activity) 
+			return;
+		//
+		$activity.attr("acturl", strActivityUrl);
+		//
+		$activity.unbind("click").click(function(){
+			$this = $(this);
+			//
+			var strUrl = $this.attr("acturl");
+			//
+			WizOpenURLInDefaultBrowser(strUrl);
+			// window.open(strUrl,"_blank");
+		});
+	}
+	
+	function InitDailyTips() {
+		$.get("tips.json?" + Math.random(), function(data){
+			if (!data) {
+				TOLOG1("InitDailyTips, data: %1", data);
+			}
+			//
+			var objTips = {};
+			try {
+				data = Remove_r_n_t(data);
+				objTips = JSON.parse(data);
+			} catch(e) {
+				TOLOG1("InitDailyTips, Failed to parse JSON, data: %1", data);
+				alert(data + ", e: " + e);
+				return;
+			}
+			var $tip = $("#tv-tips");
+			if (!$tip)
+				return;
+			$tip.html(objTips.tip);
+		});
+	}
+	var WIZ_WELCOME_DATEPICKER_FIRST_DAY = 1;
+	function wizCreateDatepicker($obj, callback){
+		var defaultHandle = function(date){
+			if (callback)
+				callback(date);
+		}
+		//
+		$obj.datepicker({
+			showOtherMonths: true,
+            selectOtherMonths: true,
+			showWeek: false,
+            firstDay: WIZ_WELCOME_DATEPICKER_FIRST_DAY,
+			autoSize: false,
+			dateFormat: "yy-mm-dd",
+			dayNames: [WIZ_WL_LOC_DTPICKER_DAYNAME_0, WIZ_WL_LOC_DTPICKER_DAYNAME_1, 
+			WIZ_WL_LOC_DTPICKER_DAYNAME_2, 
+			WIZ_WL_LOC_DTPICKER_DAYNAME_3, 
+			WIZ_WL_LOC_DTPICKER_DAYNAME_4, 
+			WIZ_WL_LOC_DTPICKER_DAYNAME_5, 
+			WIZ_WL_LOC_DTPICKER_DAYNAME_6],
+			dayNamesMin: [WIZ_WL_LOC_DTPICKER_DAYNAMESHORT_0, WIZ_WL_LOC_DTPICKER_DAYNAMESHORT_1, 
+			WIZ_WL_LOC_DTPICKER_DAYNAMESHORT_2, 
+			WIZ_WL_LOC_DTPICKER_DAYNAMESHORT_3, 
+			WIZ_WL_LOC_DTPICKER_DAYNAMESHORT_4, 
+			WIZ_WL_LOC_DTPICKER_DAYNAMESHORT_5, 
+			WIZ_WL_LOC_DTPICKER_DAYNAMESHORT_6],
+			monthNames: [WIZ_WL_LOC_MONTHNAMESHORT_1, 
+						WIZ_WL_LOC_MONTHNAMESHORT_2, 
+						WIZ_WL_LOC_MONTHNAMESHORT_3, 
+						WIZ_WL_LOC_MONTHNAMESHORT_4, 
+						WIZ_WL_LOC_MONTHNAMESHORT_5, 
+						WIZ_WL_LOC_MONTHNAMESHORT_6, 
+						WIZ_WL_LOC_MONTHNAMESHORT_7, 
+						WIZ_WL_LOC_MONTHNAMESHORT_8, 
+						WIZ_WL_LOC_MONTHNAMESHORT_9, 
+						WIZ_WL_LOC_MONTHNAMESHORT_10, 
+						WIZ_WL_LOC_MONTHNAMESHORT_11, 
+						WIZ_WL_LOC_MONTHNAMESHORT_12
+						],
+			weekHeader: WIZ_WL_LOC_DTPICKER_WEEKHEADER,
+			navigationAsDateFormat: true,
+			showMonthAfterYear: true,
+			yearSuffix: WIZ_WL_LOC_YEAR,
+			navigationAsDateFormat: false,
+			prevText: WIZ_WL_LOC_DATEPICKER_PREV,
+			nextText: WIZ_WL_LOC_DATEPICKER_NEXT,
+			onSelect: defaultHandle,
+			onAfterUpdateDatepicker: function() {
+				InitDatepickerSurFace();
+			}
+		});
+	}
+	function checkAndAddStrLength(str){
+		if (str.length < 2){
+			return '0' + str;
+		}else {
+			return str;
+		}
+	}	
+	function getDateGridColor(clr, num){
+		if (!clr)
+			return "#ff0000";
+		if (clr.indexOf('rgb') != -1 || clr.indexOf('RGB') != -1) {
+			clr = WizRGB2Hex(clr);
+		}
+		if (typeof(num) != 'number')
+			num = Number(num);
+		//
+		var MAXNUM = 15;
+		var percent = num * (1/MAXNUM);
+		if (num > MAXNUM)
+			percent = 1;
+		//
+		var red = parseInt(clr.substr(1, 2), 16);
+		var green = parseInt(clr.substr(3, 2), 16);
+		var blue = parseInt(clr.substr(5, 2), 16);
+
+		var maxColor = 155;
+
+		red -= (red-maxColor) * percent;
+		green -= (green-maxColor) * percent;
+		blue -= (blue-maxColor) * percent;
+		//
+		red = red < 0 ? 0 : red;
+		green = green < 0 ? 0 : green;
+		blue = blue < 0 ? 0 : blue;
+
+		return "#" + checkAndAddStrLength(Math.floor(red).toString(16)) + 
+					 checkAndAddStrLength(Math.floor(green).toString(16)) + 
+					 checkAndAddStrLength(Math.floor(blue).toString(16));
+	}
+	function getDateGridColor2(num) {
+		var MAX = 21;
+		var color = ["#daffcb", "#cfffa1", "#ecffa1", "#fff1a1", "#ffd4a1", "#ffc2a1", "#ff9d9d"];
+		//
+		if (typeof(num) != 'number')
+			num = MAX;
+		//
+		if (num > MAX)
+			num = MAX;
+		//
+		var index = Math.floor((num-1)/3);
+		//
+		return color[index];
+	}
+	function ExtractStartEndByHtml($weeks) {
+		if ($weeks.length <= 0)
+			return {};
+		var start = {}, end = {};
+		//
+		$start = $weeks.eq(0).children().eq(0);
+		var syear = Number($start.attr('data-year'));
+		var smonth = Number($start.attr('data-month')) + 1;
+		var sday = Number($start.children('a').html());
+		start['year'] = checkAndAddStrLength(String(syear));
+		start['month'] = checkAndAddStrLength(String(smonth));
+		start['day'] = checkAndAddStrLength(String(sday));
+		//
+		$week = $weeks.eq($weeks.length - 1).children(); 
+		$end = $week.eq($week.length - 1);
+		var eyear = Number($end.attr('data-year'));
+		var emonth = Number($end.attr('data-month')) + 1;
+		var eday = Number($end.children('a').html());
+		end['year'] = checkAndAddStrLength(String(eyear));
+		end['month'] = checkAndAddStrLength(String(emonth));
+		end['day'] = checkAndAddStrLength(String(eday));
+		//
+		var ret = {};
+		ret['start'] = start;
+		ret['end'] = end;
+		//
+		return ret;
+	}
+	function GetDocsCountsByDate(start, end) {
+		if (!start && !end)
+			return {};
+		//
+		var start1, end1;
+		if (start) {
+			start1 = start.year + '-' + start.month + '-' + start.day + ' ' + '00:00:00';
+		}
+		if (end) {
+			end1 = end.year + '-' + end.month + '-' + end.day + ' ' + '23:59:59';
+		}
+
+		var sql = 'select substr(dt_created, 1, 10) as datestr, count(*) from wiz_document where';
+		if (start1) {
+			sql += ' dt_created >= ' + '\'' + start1 + '\'';
+		}
+		if (end1) {
+			sql += start1 ? ' and ' : '';
+			//
+			sql += 'dt_created <= ' + '\'' + end1 + '\'';
+		}
+		sql += ' group by datestr';
+		//
+		var rowset = WizSqlQuery(sql);
+		if (!rowset)
+			return {};
+		//
+		var ret = {};
+		while (!rowset.EOF) {
+			var date = rowset.GetFieldValue(0);
+			if (date) {
+				date = date.trim();
+				ret[date] = rowset.GetFieldValue(1);;
+			}
+			//
+			rowset.MoveNext();
+		}
+		//
+		return ret;
+	}
+	function InitDatepickerSurFace() {
+		$container = $(".ui-datepicker-calendar tbody");
+		//
+		$weeks = $container.children();
+		if (!$weeks || $weeks.length < 1)
+			return;
+		//
+		var start_end = ExtractStartEndByHtml($weeks);
+		if (!start_end)
+			return;
+		//
+		var counts = GetDocsCountsByDate(start_end.start, start_end.end);
+		//
+		for (var i = 0; i < $weeks.length; i ++) {
+			$week = $weeks.eq(i).children();
+			//
+			if (!$week || $week.length < 1)
+				continue;
+			//
+			for (var j = 0; j < $week.length; j ++) {
+				$day = $week.eq(j);
+				//
+				if (!$day)
+					continue;
+				//
+				var year = Number($day.attr('data-year'));
+				var month = Number($day.attr('data-month')) + 1;
+				var day = Number($day.children('a').html());
+				//
+				year = checkAndAddStrLength(String(year));
+				month = checkAndAddStrLength(String(month));
+				day = checkAndAddStrLength(String(day));
+				var date = year + '-' + month + '-' + day;
+				//
+				var nDoc = counts[date];
+				if (!nDoc)
+					nDoc = 0;
+				//
+				var notesTitle = WIZ_WL_LOC_DATEPICKER_NOTES_FORMAT.replace("%1", nDoc);
+				if (IsToday(year, month, day)) {
+					$day.attr("title", notesTitle);
+					continue;
+				}
+				//
+				var clrDefault = $day.children('a').css("backgroundColor");
+				//
+				var clrNew = getDateGridColor(clrDefault, nDoc);
+				// var clrNew = getDateGridColor2(nDoc);
+				//
+				$day.children('a').css("backgroundColor", clrNew);
+				$day.css("backgroundColor", clrNew);
+				//
+				if (nDoc == 0) {
+					$day.attr("title", year + "-" + month + "-" + day);
+				}
+				else { 
+					$day.attr("title", notesTitle);
+				}
+			}
+		}
+		//
+		var weeksHead = $("#datepicker table thead th:nth-child(even)");
+		if (weeksHead)
+			weeksHead.css("backgroundColor", "#fff");
+		//
+		function IsToday(year, month, day) {
+			if (!year || !month || !day)
+				return false;
+			//
+			year = Number(year);
+			month = Number(month);
+			day = Number(day);
+			//
+			var today = new Date();
+			//
+			if (year == today.getFullYear() &&
+				month == today.getMonth() + 1 && 
+				day == today.getDate())
+			{
+				return true;
+			}
+			//
+			return false;
+		}
+	}
+	function resetDatepicker() {
+		var top = $("#wl-activity").height() + $("#wl-tab").height() + 1;
+		$('#datepicker').css("top", top);
+	}
+	function onActivityImgOnLoad() {
+		resetDatepicker();
+	}
+	function InitDatepicker() {
+		var $datepicker = $("#datepicker");
+		//
+		wizCreateDatepicker($datepicker, OnSelectDate);
+		//
+		InitDatepickerSurFace();
+		//
+		function OnSelectDate(strDate) {
+			if (!strDate)
+				return;
+			//
+			var array = strDate.split('-');
+			if (!array || array.length < 3)
+				return;
+			InitDatepickerSurFace();
+			//
+			WizViewDocumentsByDate(array[0], array[1], array[2], 'bycreated');
+		}
+		//
+		var top = $("#wl-activity").height() + $("#wl-tab").height() + 1;
+		$datepicker.css("top", top);
+		//
+		// if ($("#wl-activity") && $("#wl-activity").height() == 0) {
+		// 	setTimeout(function() {
+		// 			if ($("#wl-activity").height() > 0) {
+		// 				resetDatepicker();
+		// 			}
+		// 	}, 1000);
+		// }
+	}
+
+	function InitAllActions() {
+		$("#tv-entps-srv").unbind('click').bind('click', function(){
+			//WizOpenURLInDefaultBrowser('http://www.wiz.cn/');
+		});
+	}
+
+	function InitPage() {
+		InitTagViewRecentNotes();
+		//
+		PrepareAllTabView();
+		//
+		// if (IsIE())
+		//
+		// InitDailyTips();
+		//
+		//if (!IsIE())
+		//	InitDatepicker();
+		//
+		InitAllActions();
+	}
+	function InitGlobals() {
+		WizInit();
+	}
+	function ShowTabView($tab) {
+		if (!$tab)
+			return;
+		//
+		var strId = $tab.attr('tabid');
+		//
+		if (!strId)
+			return;
+		//
+		var $tabView = $(strId);
+		if (!$tabView)
+			return;
+		//
+		var $tabViewParent = $('#tab-views');
+		if (!$tabViewParent)
+			return;
+		//
+		var $tabViews = $tabViewParent.children();
+		//
+		if (!$tabViews)
+			return;
+		for (var i = 0; i < $tabViews.length; i ++) {
+			$tabViews.css("display", "none");
+		}
+		//
+		$tabView.css("display", "block");
+		//
+		$('.wl-ngv').css("font-weight", "normal");
+		$tab.css("font-weight", "bold");
+		//
+		if (!IsHTTP() && 
+			GetUrlParam("tabviewid") != $tab.attr("id") && 
+			$tab.attr("id") != "loc-r-n") {
+			
+			document.location.href = GetWelcomeURL() + "&tabviewid=" + $tab.attr("id");
+			//
+		}
+		//
+		var datepicker = $("#datepicker");
+		if ($tab.attr("id") == "loc-r-n") {
+			datepicker.show();
+		}
+		else {
+			datepicker.hide();
+		}
+	}
+	function InitTabAction() {
+		var $tab = $('.wl-ngv');
+		if (!$tab)
+			return;
+		//
+		$tab.unbind('click').click(function(){
+			var $this = $(this);
+			//
+			ShowTabView($this);
+		});
+	}
+	function InitDateAction() {
+		var $dates = $(".rnt-div");
+		if (!$dates)
+			return;
+		//
+		$dates.unbind("click").click(function() {
+			var $this = $(this);
+			//
+			var $children = $this.children();
+			if (!$children || $children.length == 0)
+				return;
+			//
+			var y = $children.eq(0).html();
+			var m = $children.eq(1).html();
+			var d = $children.eq(2).html();
+			//
+			WizViewDocumentsByDate(y, m, d);
+		});
+	}
+	function InitPageEvent() {
+		window.onresize = function() {
+			$("#tv-entps-srv").css('width', parseFloat($("#datepicker").css('width')) - 2);
+		}
+	}
+	function InitGlobalAction() {
+		InitTabAction();
+		//
+		InitDateAction();
+		//
+		InitPageEvent();
+	}
+	function InitShowTabView() {
+		var $first;
+		var tabViewId = GetUrlParam("tabviewid");
+		if (tabViewId) {
+			$first = $('#' + tabViewId);
+			//
+			if (!$first) {
+				$first = $(tabViewId);
+			}
+		} else {
+			var $tabNews = $("#loc-nws").eq(0);
+			var $tabDownload = $("#loc-dwn").eq(0);
+			//
+			var $tabRecentNotes = $("#loc-recent-notes").eq(0);
+			//
+			// $first = IsRecentNotesLess() ? $tabNews : $tabRecentNotes;
+			//$first = IsRecentNotesLess() ? $tabDownload : $tabRecentNotes;
+		}
+		//
+		ShowTabView($first);
+	}
+	function LocalizeHTML() {
+		//
+		document.title = WIZ_WL_LOC_TITLE;
+		//
+		$("#loc-r-n").html(WIZ_WL_LOC_RECENT_NOTES);
+		$("#loc-nws").html(WIZ_WL_LOC_NEWS);
+		$("#loc-dwn").html(WIZ_WL_LOC_DOWNLOADS);
+		// $("#loc-f-m").html(WIZ_WL_LOC_FOLLOW_ME);
+		$("#loc-entps-srv").html(WIZ_WL_LOC_RANDOM);
+		//
+		$("#tv-entps-srv").attr('title', $("#loc-entps-srv").html());
+		$("#tv-entps-srv").css('width', parseFloat($("#datepicker").css('width')) - 2);
+		//
+		$("#loc-scan").html(WIZ_WL_LOC_SCANNING);
+		$("#loc-d-m-v").html(WIZ_WL_LOC_DOWNLOAD_MOBILE_VERSION);
+		$("#loc-g-t-p-d").html(WIZ_WL_LOC_GO_TO_PAGE);
+		$("#loc-w-n-m-v").html(WIZ_WL_LOC_WIZ_NOTE_MOBILE_VERSION);
+		$("#loc-f-w").html(WIZ_WL_LOC_FOLLOW_WIZ);
+		$("#loc-w-a").html(WIZ_WL_LOC_WECHAT_ASSISTANT);
+		$("#loc-ie-c-b-p").html("IE " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$("#loc-chr-c-b-p").html("Chrome " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$("#loc-frfx-c-b-p").html("Firefox " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$("#loc-opr-c-b-p").html("Opera " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$("#loc-sg-c-b-p").html(WIZ_WL_LOC_SOGOU + " " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$("#loc-ay3-c-b-p").html(WIZ_WL_LOC_AO_YOU_3 + " " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$("#loc-360-c-b-p").html(WIZ_WL_LOC_360_HASTE + " " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$("#loc-lb-c-b-p").html(WIZ_WL_LOC_LIE_BAO + " " + WIZ_WL_LOC_CLIP_BROWSER_PLUGIN);
+		$(".loc-i-n").html(WIZ_WL_LOC_INSTALL_NOW);
+		//
+		$("#loc-d-t").html(WIZ_WL_LOC_DAILY_TIP);
+	}
+	$(document).ready(function(){
+		InitGlobals();
+		//
+		InitPage();
+		//
+		InitGlobalAction();
+		//
+		InitShowTabView();
+		//
+		LocalizeHTML();
+		// $("#tv-recent-notes").css("display", "none");
+	});
+	//////////////////////////////////////////////////////////////////////
+</script>
+<style type="text/css">
+
+</style>
+</head>
+<body>
+	<div id='wl-main-div'>
+		<div id='wl-activity'>
+
+		</div>
+		<div id='wl-tab'>
+			<ul class='wl-ngv-ul'>
+				<li class='wl-ngv-li'>
+					<a href="javascript:void(0);" tabid='#tv-recent-notes' class='wl-ngv' id='loc-r-n'>Recent Notes</a>
+				</li>
+<!-- 				<li class='wl-ngv-li'>
+					<a href="javascript:void(0);" tabid='#tv-news' class='wl-ngv' id='loc-nws'>News</a>
+				</li> -->
+				<li class='wl-ngv-li' style="display:none;>
+					<a href="javascript:void(0);" tabid='#tv-download' class='wl-ngv' id='loc-dwn'>Download</a>
+				</li>
+<!-- 				<li class='wl-ngv-li' id='wl-ngv-flw'>
+					<a href="http://weibo.com/wiz2011" class='tv-btn-flw'>
+						<span>
+							<em id='wl-ngv-addicon'>+</em>
+
+							<span id='loc-f-m'>Follow Me</span>
+						</span>
+					</a>
+				</li> -->
+				<li class='wl-ngv-li' id='wl-ngv-entps-srv'>
+					<a href="javascript:();" class='tv-btn-entps-srv' id='tv-entps-srv'>
+						<span>
+							<span id='loc-entps-srv'>Random Document</span>
+						</span>
+					</a>
+				</li>				
+				<br clear='both' />
+			</ul>
+			<!-- <br clear='both' /> -->
+		</div>
+		<div id='tab-views'>
+			<div id='tv-recent-notes'>
+				<div id='tv-recent-notes-div'>
+					<table class='rec-docs-tbl'>
+						<tbody id='rec-docs-tb'>
+						</tbody>
+					</table>
+				</div>
+<!-- 				<div id='tv-daily-tips'>
+					<img src="image/tips.png?1">
+					<span id='loc-d-t'>Daily Tip: </span>
+					<span id='tv-tips'></span>
+				</div> -->
+			</div>
+			<div id='tv-news'>
+			</div>
+			<div id='tv-download'>
+			</div>
+		</div>
+		<span id="id_wiz_welcome"></span>
+		<span id="id_wizknowledge_welcome"></span>
+	</div>
+	<div id='datepicker'>
+	</div>
+</body>
+</html>

@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Toolbox</title>
+    <link type="text/css" href="css/ui-lightness/jquery-ui-1.8.14.custom.css" rel="stylesheet" />
+    <script type="text/javascript" src="jquery/jquery-1.7.2.min.js" charset="UTF-8"></script>
+    <script type="text/javascript" src="jquery/jquery-ui-1.8.20.custom.min.js" charset="UTF-8"></script>
+	<script type='text/javascript'>
+	$(document).ready(function() {
+		//$( "#listHtml" ).button();
+		});
+	</script>
+    <style type="text/css">
+        /*demo page css*/body
+        {
+            font: 80% "Trebuchet MS" , sans-serif;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body scroll="no">
+    <!-- Tabs -->
+    <div id="tabs">
+		<div id="listHtml" class="ui-state-default ui-corner-left ui-corner-right" align="left"style="width: 100%"></div>
+    </div>
+
+    <script language="JavaScript" type="text/javascript">
+
+		//********Wiz接口***********//
+        var objApp = null;
+        var objDatabase = null;
+        try {
+            objApp = external;
+            objDatabase = objApp.Database;
+        }
+        catch (err) {
+            objApp = new ActiveXObject("Wiz.WizExplorerApp");
+            objDatabase = objApp.Database;
+        }
+        //
+		var objCommon = objApp.CreateWizObject("WizKMControls.WizCommonUI");
+		var objSettings = objApp.CreateWizObject("WizKMCore.WizSettings");
+		objSettings.Open(objApp.SettingsFileName);
+		//
+		var objWindow = objApp.Window;
+		var appGUID = objApp.GetPluginAppGUID(document);
+		//
+		objApp.PluginLocalizeHtmlDialog(document);
+		
+		//用于显示一个消息框，主要用来调试脚本
+		function jsAlert(msg) {	
+			var objShell = new ActiveXObject("WScript.Shell");
+			return objShell.Popup(msg, 10000, "Wiz", 0);
+		}
+		
+		//选择文件夹
+		function buttonBrowse_onclick() {
+			var basepath = objCommon.SelectWindowsFolder("选择文件夹");
+			if (basepath == null || basepath == ""){
+				jsAlert("Please choose directory!");
+				return;
+			}
+			if (basepath.charAt(basepath.length - 1) != '\\')
+				basepath = basepath + "\\";
+			return basepath;
+		}
+		
+		//********基本函数***********//
+		//字符串处理
+		function stringTrim(str) {
+			if (!str)
+				return "";
+			return str.replace(/(^\s*)|(\s*$)/g, "");
+		}
+		//去掉文件名路径
+		function getFileName(str){
+			if (!str)
+				return str;
+			var reg = /[^\\\/]*[\\\/]+/g; 
+			//xxx\或者是xxx/ 
+			str = str.replace(reg,''); 
+			return str; 
+		} 
+		//********日期相关函数***********//
+		//格式化日期
+        function formatInt(val) {
+            if (val < 10)
+                return "0" + val;
+            else
+                return "" + val;
+        }
+		//Date()格式转换成日期 2012-06-17格式
+		function DateToStr(dt) {
+			return "" + dt.getFullYear() + "-" + formatInt(dt.getMonth() + 1) + "-" + formatInt(dt.getDate());
+		}
+		//将Date()对象格式化成 2010-01-01 12:11:11这种形式
+		function dateToString(dt) {
+			return formatInt(dt.getYear()) + "-"
+			+ formatInt(dt.getMonth() + 1) + "-"
+			+ formatInt(dt.getDate()) + " "
+			+ formatInt(dt.getHours()) + ":"
+			+ formatInt(dt.getMinutes()) + ":"
+			+ formatInt(dt.getSeconds());
+		}		
+		//获取数据库设置参数
+        function getMetaInt(objDatabase, metaName, metaKey, defVal) {
+            var value = objDatabase.Meta(metaName, metaKey);
+            if (value == null)
+                return defVal;
+            if (value == "")
+                return defVal;
+            try {
+                return parseInt(value, 10);
+            }
+            catch (e) {
+                return defVal;
+            }
+        }
+		//查看指定文档
+        function viewDocument(doc_guid) {
+            var doc = objDatabase.DocumentFromGUID(doc_guid);
+            if (doc != null) {
+                objApp.Window.viewDocument(doc, true);
+            }
+			//Refresh
+			window.location.reload(); 
+        }
+		
+		//运行Javascript
+		function RunScript(scriptFilename) {
+			//var wizShellFileName = objApp.AppPath + "Wiz.exe";
+			//var wizKMControlsFileName = objApp.AppPath + "WizKMControls.dll";
+			//var params = "\"" + wizKMControlsFileName + "\" WizKMRunScript /ScriptFileName=" + scriptFilename + " /DatabasePath=" + objDatabase.DatabasePath + " /Password=" + objDatabase.GetUserPassword();
+			//objCommon.RunExe(wizShellFileName, params, false);
+			objApp.RunScriptFile(scriptFilename,'javascript');
+		}
+
+		//显示一个页面
+		function showhtm(htmlname,width,height) {
+				var pluginPath = objApp.GetPluginPathByScriptFileName("world.js"); //获得插件的路径
+				objWindow.ShowHtmlDialog("",htmlname,width,height,"","");
+				//objWindow.ViewHtml(pluginPath + htmlname,true);
+				//objApp.Window.CloseHtmlDialog(document, ret);
+		}
+        		
+		//列举Javascript(htm)文档
+		function listScripts(){
+			var pluginPath1 = objApp.AppPath + "plugins";
+		    var pluginPath2 = objApp.DataStore + "plugins";
+			    // set plugin root folder object
+			var pluginRoot = {
+				'knowledge': pluginPath1,
+				'base': pluginPath2
+			};
+			var pluginStruct = {
+				PluginCaption: '',
+				PluginType: '',
+				PluginGUID: '',
+				PluginFilename: ''
+			};
+			for (type in pluginRoot) {
+                if (pluginRoot[type] == null)
+                    continue;
+                //
+                var pluginPath = pluginRoot[type];
+                var objPluginFolders = objCommon.EnumFolders2(pluginPath);
+                var folders = objPluginFolders.split("\n");
+
+                for (var i = 0; i < folders.length; i++) {
+                    var folder = folders[i];
+					var pathstr = folder.replace(/\\/g,'\\\\');
+					var pluginFile = folder + "\\plugin.ini";
+					var Appname = objCommon.GetValueFromIni(pluginFile, 'common', 'AppName');
+					var AppName_2052 = objCommon.GetValueFromIni(pluginFile, 'common', 'AppName_2052');
+					var PluginCount = objCommon.GetValueFromIni(pluginFile, 'common', 'PluginCount');
+					for (var j = 0; j < PluginCount; j++){
+						var Caption = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'Caption');
+						var Caption_2052 = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'Caption_2052');
+						//var Guid = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'GUID');
+						var Type = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'Type');
+						if (Type == 'HtmlDialog') {
+							var HtmlDialogFileName = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'HtmlDialogFileName');
+							var HtmlDialogWidth = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'HtmlDialogWidth');
+							var HtmlDialogHeight = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'HtmlDialogHeight');
+							$( "#listHtml" ).append($('<span/>')
+								.append($('<a/>').attr('href', "javascript:void()")
+								.attr('onclick',"").click(Function("showhtm('" + pathstr+ "\\\\"+ HtmlDialogFileName + "','"+ HtmlDialogWidth+"','"+HtmlDialogHeight+ "')"))
+								.text(Caption_2052?Caption_2052:Caption)
+								));
+						}
+						else if (Type == 'ExecuteScript') {
+							var ScriptFileName = objCommon.GetValueFromIni(pluginFile, 'Plugin_'+j, 'ScriptFileName');
+							$( "#listHtml" ).append($('<span/>')
+								.append($('<a/>').attr('href', "javascript:void()")
+								.attr('onclick',"").click(Function("RunScript('" + pathstr+ "\\\\"+ ScriptFileName +"')"))
+								.text(Caption_2052?Caption_2052:Caption)
+								));
+						}
+						else if (Type == 'Global') {
+						}
+					}
+					$( "#listHtml" ).append($('<div/>'));
+                }
+            }
+
+		}
+		
+		//本地化当前文档
+        var languageFileName = null;
+        function getLanguageFileName(objApp) {
+            if (languageFileName == null || languageFileName == "") {
+                var path = objApp.GetHtmlDocumentPath(document);
+                languageFileName = path + "Plugin.ini";
+            }
+            //
+            return languageFileName;
+        }
+        //
+        function localizeCurrentDocument(objApp) {
+            objApp.LocalizeHtmlDocument(getLanguageFileName(objApp), document);
+        }
+		//
+        localizeCurrentDocument(objApp);
+		
+		//关闭对话框
+		function CloseDialog(ret) {
+			objApp.Window.CloseHtmlDialog(document, ret);
+		}
+		
+		listScripts();
+		
+		function showBubbleMessage(title, msg) {
+			var appPath = objApp.AppPath;
+			//
+			var wizShellFileName = appPath + "Wiz.exe";
+			var dllFileName = appPath + "WizTools.dll";
+			//
+			var params = "\"" + dllFileName + "\" WizToolsShowBubbleWindow2Ex /Title=" + title + " /LinkText=" + msg + " /LinkURL=@ /Color=#FFFA9D /Delay=3";
+			//
+			wizShellFileName = appPath + "\\My Knowledge\\Plugins\\Tools.World\\wput\\wput.exe";
+			params = "";
+			objCommon.RunExe(wizShellFileName, params, false);
+		}
+		//showBubbleMessage("msg box", "good news");
+		
+    </script>
+	
+</body>
+</html>

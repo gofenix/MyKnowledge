@@ -1,0 +1,26 @@
+<html>
+<head>
+<title></title>
+<script type="text/javascript">
+	var _bdhmProtocol = (("https:" == document.location.protocol) ? " https://" : " http://");
+	document.write(unescape("%3Cscript src='" + _bdhmProtocol + "hm.baidu.com/h.js%3Fd08d235c00297e622e3d4a4c0d300272' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+    function GetUrlParam(name) {
+        var reg = new RegExp("[?#&]" + name + "=([^?&]*)[&]?", "i");
+        var match = location.href.match(reg);
+        return match == null ? "" : match[1];
+    }
+	function onload() {
+		var url = location.href;
+		redirect = url.substr(url.lastIndexOf('redirect=') + 9);
+		//
+		redirect = redirect.indexOf('http://') == -1 ? 'http://' + redirect : redirect;
+		//
+		document.location.href = redirect;
+	}
+</script>
+</head>
+<body onload='onload();'>
+</body>
+</html>

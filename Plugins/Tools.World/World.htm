@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>Home</title>
+	<link rel="stylesheet" href="./css/ui-lightness/jquery-ui-1.8.19.custom.css"> 
+	<link href="clock/css/style.css" rel="stylesheet" />
+	<link rel="stylesheet" href="./css/World.css">
+	<!-- Jquery and Jquery UI -->
+	<script type='text/javascript' src='./jquery/jquery-1.7.2.min.js'></script>
+	<script type='text/javascript' src='./jquery/jquery-ui-1.8.20.custom.min.js'></script>
+	<script type='text/javascript' src='./jquery/jquery.qtip.min.js'></script>
+	<script type="text/javascript" src='./jquery/jquery.ui.datepicker-zh-CN.js'></script>
+	<script type='text/javascript' src='./jquery/moment.min.js'></script>
+	<script type="text/javascript" src='./jquery/calCalendar.js'></script>
+
+    <script type="text/javascript">
+        $(function() {
+			// Tabs
+            $('#tabs').tabs();
+
+        });
+
+
+    </script>
+
+</head>
+<body scroll="no">
+    <!-- Tabs -->
+    <div id="tabs">
+		<ul>
+            <li><a href="#tabsRecent">
+                <label id="labelOverview">
+                    Overview</label></a></li>
+            <!--<li><a href="#tabsNews"><label id="labelNews">Wiz News</label></a></li>-->
+        </ul>
+		<div id="tabsRecent">
+			<div id="solarDay" style="padding-left:10px; padding-right:10px;"></div>
+			<div id="clock" style="padding-left:10px; padding-right:10px;"></div>
+			<div class="tblock">
+				<table style="border: 1px solid #BBBBBB;background-color:#FFFFFF;width:480px;text-align:left" align="center" border="0" cellpadding="0" cellspacing="0"><tr><td>
+					<td><div style="padding-left:10px; padding-right:10px; font: 20px Arial,Helvetica, Sans-Serif;"><b>志存高远，心贵平常</br>淡泊明志，宁静致远</b></div>
+				</tr><tr><td colspan="2" style="display:none;"><div id="ctime" style="padding-left:10px; padding-right:10px; font: 20px Arial,Helvetica, Sans-Serif;"></div></td></tr></table>
+			</div>
+		</div>
+    </div>
+
+    <script language="JavaScript" type="text/javascript">
+
+		//********Wiz接口***********//
+        var objApp = null;
+        var objDatabase = null;
+        try {
+            objApp = external;
+            objDatabase = objApp.Database;
+        }
+        catch (err) {
+            objApp = new ActiveXObject("Wiz.WizExplorerApp");
+            objDatabase = objApp.Database;
+        }
+        //
+		var objCommon = objApp.CreateWizObject("WizKMControls.WizCommonUI");
+		var objSettings = objApp.CreateWizObject("WizKMCore.WizSettings");
+		objSettings.Open(objApp.SettingsFileName);
+		//
+		var objWindow = objApp.Window;
+		var appGUID = objApp.GetPluginAppGUID(document);
+		//
+		objApp.PluginLocalizeHtmlDialog(document);
+		//
+		var settings_section = "World";
+		
+		var objShell = objApp.CreateActiveXObject("WScript.Shell");
+
+		//设置标题
+		function setTitle(titlestr){
+			document.title = titlestr;
+		}
+		
+		//用于显示一个消息框，主要用来调试脚本
+		function jsAlert(msg) {	
+			return objShell.Popup(msg, 10000, "Wiz", 0);
+		}
+		
+		//选择文件夹
+		function buttonBrowse_onclick() {
+			var basepath = objCommon.SelectWindowsFolder("选择文件夹");
+			if (basepath == null || basepath == ""){
+				jsAlert("Please choose directory!");
+				return;
+			}
+			if (basepath.charAt(basepath.length - 1) != '\\')
+				basepath = basepath + "\\";
+			return basepath;
+		}
+		
+		//********基本函数***********//
+		//从文本文件中读取字符串
+		function loadString(name) {
+			return objApp.LoadStringFromFile(pluginFileName, name);
+		}
+		//字符串处理
+		function stringTrim(str) {
+			if (!str)
+				return "";
+			return str.replace(/(^\s*)|(\s*$)/g, "");
+		}
+		//去掉文件名路径
+		function getFileName(str){
+			if (!str)
+				return str;
+			var reg = /[^\\\/]*[\\\/]+/g; 
+			//xxx\或者是xxx/ 
+			str = str.replace(reg,''); 
+			return str; 
+		} 
+		//********日期相关函数***********//
+		//格式化日期
+        function formatInt(val) {
+            if (val < 10)
+                return "0" + val;
+            else
+                return "" + val;
+        }
+
+		//计算日期差
+		function DateTillNow(d2){
+			var d1 = moment(moment().format("MM-DD-YYYY"), "MM-DD-YYYY");
+			//var d2 = moment("11-21-1989", "MM-DD-YYYY");
+			return d1.diff(d2,'days');
+		}
+
+		//获取数据库设置参数
+        function getMetaInt(objDatabase, metaName, metaKey, defVal) {
+            var value = objDatabase.Meta(metaName, metaKey);
+            if (value == null)
+                return defVal;
+            if (value == "")
+                return defVal;
+            try {
+                return parseInt(value, 10);
+            }
+            catch (e) {
+                return defVal;
+            }
+        }
+		//查看指定文档
+        function viewDocument(doc_guid) {
+            var doc = objDatabase.DocumentFromGUID(doc_guid);
+            if (doc != null) {
+                objApp.Window.viewDocument(doc, true);
+            }
+			//Refresh
+			window.location.reload(); 
+        }
+		//查看网页
+        function viewHtml(url) {
+            if (url != null) {
+                objApp.Window.ViewHtml(url, true);
+            }
+			//Refresh
+			window.location.reload(); 
+        }
+
+		//本地化当前文档
+        var languageFileName = null;
+        function getLanguageFileName(objApp) {
+            if (languageFileName == null || languageFileName == "") {
+                var path = objApp.GetHtmlDocumentPath(document);
+                languageFileName = path + "Plugin.ini";
+            }
+            //
+            return languageFileName;
+        }
+        //
+        function localizeCurrentDocument(objApp) {
+            objApp.LocalizeHtmlDocument(getLanguageFileName(objApp), document);
+        }
+		//
+        //localizeCurrentDocument(objApp);
+		
+		//关闭对话框
+		function CloseDialog(ret) {
+			objApp.Window.CloseHtmlDialog(document, ret);
+		}
+		//
+		 var date=new Date(); 
+		 var d2 = moment("11-21-1989", "MM-DD-YYYY");
+		 var gl = lunarcalendar(date);
+		 gl = '<div style = "padding: 0px 0px 10px; font-size:12pt;font-weight: bold;">' + gl.displaydate5 + '  <b>' + DateTillNow(d2) + ' 天</b>' + '</div>';
+		 $('#solarDay').html(gl);
+		 var d3 = moment("20170408", "YYYYMMDD");
+		 var d4 = moment();
+		 var time = d3.diff(d4, "days");
+		 $('#clock').html('<div style = "padding: 0px 0px 10px; font-size:12pt;font-weight: bold;">' + 'Childbirth in ' + time + ' days </div>');
+		//objWindow.ShowMessage('Your are in the world for ' + DateTillNow(d2) + ' 天',"The world is changing",  0x40);
+		setTitle("世界在变");
+    </script>
+	
+</body>
+</html>
